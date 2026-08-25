@@ -7,6 +7,10 @@ export interface PortListItem {
   port_number: number;
   project_id: number;
   project_name: string;
+  project_type: "project" | "service";
+  resource_type_id: number;
+  resource_type_code: string;
+  resource_type_name: string;
   description: string | null;
   is_active: boolean;
   created_at: string;
@@ -16,6 +20,7 @@ export interface PortListItem {
 export interface CreatePortInput {
   port_number: number | string;
   project_id: number | string;
+  resource_type_id: number | string;
   description?: string | null;
   is_active?: boolean;
   adminId?: number | null;
@@ -24,6 +29,7 @@ export interface CreatePortInput {
 export interface UpdatePortInput {
   port_number?: number | string;
   project_id?: number | string;
+  resource_type_id?: number | string;
   description?: string | null;
   is_active?: boolean;
   adminId?: number | null;
@@ -33,6 +39,9 @@ export interface ListPortsFilter {
   is_active?: boolean;
   project_id?: number;
   project_name?: string;
+  project_type?: string;
+  resource_type_id?: number;
+  resource_type_code?: string;
   port_number?: number;
 }
 
@@ -51,6 +60,10 @@ const PORT_SELECT = `
   po.port_number,
   po.project_id,
   pr.name AS project_name,
+  pr.type AS project_type,
+  po.resource_type_id,
+  rt.code AS resource_type_code,
+  rt.name AS resource_type_name,
   po.description,
   po.is_active,
   po.created_at,
@@ -122,9 +135,10 @@ async function assertPortNumberAvailable(
   }
 }
 
-async function assertProjectAvailable(
+async function assertProjectResourcePairAvailable(
   client: PoolClient,
   projectId: number,
+  resourceTypeId: number,
   excludeId?: number
 ): Promise<void> {
   const result = await client.query<{ id: number; port_number: number }>(
@@ -132,17 +146,18 @@ async function assertProjectAvailable(
       SELECT id, port_number
       FROM ports
       WHERE project_id = $1
+        AND resource_type_id = $2
         AND deleted_at IS NULL
-        AND ($2::bigint IS NULL OR id <> $2)
+        AND ($3::bigint IS NULL OR id <> $3)
       LIMIT 1
     `,
-    [projectId, excludeId ?? null]
+    [projectId, resourceTypeId, excludeId ?? null]
   );
 
   if (result.rows.length > 0) {
     throw new PortError(
       409,
-      `Project นี้ถูกใช้กับ port ${result.rows[0].port_number} แล้ว`
+      `Project + Resource Type นี้ถูกใช้กับ port ${result.rows[0].port_number} แล้ว`
     );
   }
 }
@@ -168,6 +183,27 @@ async function assertProjectActive(
   }
 }
 
+async function assertResourceTypeActive(
+  client: PoolClient,
+  resourceTypeId: number
+): Promise<void> {
+  const result = await client.query<{ id: number }>(
+    `
+      SELECT id
+      FROM resource_types
+      WHERE id = $1
+        AND deleted_at IS NULL
+        AND is_active = TRUE
+      LIMIT 1
+    `,
+    [resourceTypeId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new PortError(400, "resource_type_id is invalid or inactive");
+  }
+}
+
 async function getPortRowById(
   client: PoolClient | typeof pool,
   id: number
@@ -178,6 +214,8 @@ async function getPortRowById(
       FROM ports po
       INNER JOIN projects pr
         ON pr.id = po.project_id
+      INNER JOIN resource_types rt
+        ON rt.id = po.resource_type_id
       WHERE po.id = $1
         AND po.deleted_at IS NULL
     `,
@@ -209,6 +247,30 @@ export async function getActivePorts(
     conditions.push(`pr.name ILIKE $${params.length}`);
   }
 
+  const projectType = filter.project_type?.trim().toLowerCase();
+  if (projectType) {
+    if (projectType !== "project" && projectType !== "service") {
+      throw new PortError(400, "project_type must be one of: project, service");
+    }
+    params.push(projectType);
+    conditions.push(`pr.type = $${params.length}`);
+  }
+
+  if (filter.resource_type_id !== undefined) {
+    const resourceTypeId = parsePositiveId(
+      filter.resource_type_id,
+      "resource_type_id"
+    );
+    params.push(resourceTypeId);
+    conditions.push(`po.resource_type_id = $${params.length}`);
+  }
+
+  const resourceTypeCode = filter.resource_type_code?.trim().toLowerCase();
+  if (resourceTypeCode) {
+    params.push(resourceTypeCode);
+    conditions.push(`rt.code = $${params.length}`);
+  }
+
   if (filter.port_number !== undefined) {
     const portNumber = parsePortNumber(filter.port_number);
     params.push(portNumber);
@@ -221,6 +283,8 @@ export async function getActivePorts(
       FROM ports po
       INNER JOIN projects pr
         ON pr.id = po.project_id
+      INNER JOIN resource_types rt
+        ON rt.id = po.resource_type_id
       WHERE ${conditions.join(" AND ")}
       ORDER BY po.port_number ASC
     `,
@@ -238,6 +302,10 @@ export async function getActivePortById(
 export async function createPort(input: CreatePortInput): Promise<PortListItem> {
   const portNumber = parsePortNumber(input.port_number);
   const projectId = parsePositiveId(input.project_id, "project_id");
+  const resourceTypeId = parsePositiveId(
+    input.resource_type_id,
+    "resource_type_id"
+  );
   const description =
     input.description === undefined || input.description === null
       ? null
@@ -249,15 +317,22 @@ export async function createPort(input: CreatePortInput): Promise<PortListItem> 
     await client.query("BEGIN");
     await assertPortNumberAvailable(client, portNumber);
     await assertProjectActive(client, projectId);
-    await assertProjectAvailable(client, projectId);
+    await assertResourceTypeActive(client, resourceTypeId);
+    await assertProjectResourcePairAvailable(
+      client,
+      projectId,
+      resourceTypeId
+    );
 
     const inserted = await client.query<{ id: number }>(
       `
-        INSERT INTO ports (port_number, project_id, description, is_active)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO ports (
+          port_number, project_id, resource_type_id, description, is_active
+        )
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
       `,
-      [portNumber, projectId, description, isActive]
+      [portNumber, projectId, resourceTypeId, description, isActive]
     );
     const port = await getPortRowById(client, Number(inserted.rows[0].id));
     if (!port) {
@@ -282,7 +357,7 @@ export async function createPort(input: CreatePortInput): Promise<PortListItem> 
     if (isUniqueViolation(error)) {
       throw new PortError(
         409,
-        "Port number or project is already assigned"
+        "Port number หรือ Project + Resource Type ซ้ำ"
       );
     }
     throw error;
@@ -308,6 +383,10 @@ export async function updatePort(
     input.project_id !== undefined
       ? parsePositiveId(input.project_id, "project_id")
       : existing.project_id;
+  const nextResourceTypeId =
+    input.resource_type_id !== undefined
+      ? parsePositiveId(input.resource_type_id, "resource_type_id")
+      : existing.resource_type_id;
   const nextDescription =
     input.description !== undefined
       ? input.description === null
@@ -328,7 +407,20 @@ export async function updatePort(
     }
     if (nextProjectId !== existing.project_id) {
       await assertProjectActive(client, nextProjectId);
-      await assertProjectAvailable(client, nextProjectId, id);
+    }
+    if (nextResourceTypeId !== existing.resource_type_id) {
+      await assertResourceTypeActive(client, nextResourceTypeId);
+    }
+    if (
+      nextProjectId !== existing.project_id ||
+      nextResourceTypeId !== existing.resource_type_id
+    ) {
+      await assertProjectResourcePairAvailable(
+        client,
+        nextProjectId,
+        nextResourceTypeId,
+        id
+      );
     }
 
     const updated = await client.query<{ id: number }>(
@@ -336,13 +428,21 @@ export async function updatePort(
         UPDATE ports
         SET port_number = $1,
             project_id = $2,
-            description = $3,
-            is_active = $4
-        WHERE id = $5
+            resource_type_id = $3,
+            description = $4,
+            is_active = $5
+        WHERE id = $6
           AND deleted_at IS NULL
         RETURNING id
       `,
-      [nextPortNumber, nextProjectId, nextDescription, nextIsActive, id]
+      [
+        nextPortNumber,
+        nextProjectId,
+        nextResourceTypeId,
+        nextDescription,
+        nextIsActive,
+        id,
+      ]
     );
 
     if (updated.rows.length === 0) {
@@ -376,7 +476,7 @@ export async function updatePort(
     if (isUniqueViolation(error)) {
       throw new PortError(
         409,
-        "Port number or project is already assigned"
+        "Port number หรือ Project + Resource Type ซ้ำ"
       );
     }
     throw error;

@@ -99,6 +99,12 @@ export async function getPortsController(
         "project_id"
       ),
       project_name: firstQueryValue(req.query.project_name),
+      project_type: firstQueryValue(req.query.project_type),
+      resource_type_id: parseOptionalPositiveIntQuery(
+        firstQueryValue(req.query.resource_type_id),
+        "resource_type_id"
+      ),
+      resource_type_code: firstQueryValue(req.query.resource_type_code),
       port_number: parseOptionalPortNumberQuery(
         firstQueryValue(req.query.port_number)
       ),
@@ -154,6 +160,7 @@ export async function createPortController(
     const port = await createPort({
       port_number: req.body?.port_number,
       project_id: req.body?.project_id,
+      resource_type_id: req.body?.resource_type_id,
       description: req.body?.description,
       is_active: req.body?.is_active,
       adminId: req.admin?.adminId ?? null,
@@ -186,6 +193,7 @@ export async function updatePortController(
     const port = await updatePort(id, {
       port_number: req.body?.port_number,
       project_id: req.body?.project_id,
+      resource_type_id: req.body?.resource_type_id,
       description: req.body?.description,
       is_active: req.body?.is_active,
       adminId: req.admin?.adminId ?? null,

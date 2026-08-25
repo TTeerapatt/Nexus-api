@@ -82,6 +82,7 @@ export async function getProjectsController(
     const projects = await getActiveProjects({
       is_active: parseOptionalBooleanQuery(firstQueryValue(req.query.is_active)),
       name: firstQueryValue(req.query.name),
+      type: firstQueryValue(req.query.type),
       resource_type_id: parseOptionalPositiveIntQuery(
         firstQueryValue(req.query.resource_type_id),
         "resource_type_id"
@@ -139,6 +140,7 @@ export async function createProjectController(
     const project = await createProject({
       name: req.body?.name,
       description: req.body?.description,
+      type: req.body?.type,
       resource_type_id: req.body?.resource_type_id,
       is_active: req.body?.is_active,
       adminId: req.admin?.adminId ?? null,
@@ -171,6 +173,7 @@ export async function updateProjectController(
     const project = await updateProject(id, {
       name: req.body?.name,
       description: req.body?.description,
+      type: req.body?.type,
       resource_type_id: req.body?.resource_type_id,
       is_active: req.body?.is_active,
       adminId: req.admin?.adminId ?? null,

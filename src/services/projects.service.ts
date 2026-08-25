@@ -6,6 +6,7 @@ export interface ProjectListItem {
   id: number;
   name: string;
   description: string | null;
+  type: "project" | "service";
   resource_type_id: number;
   resource_type_code: string;
   resource_type_name: string;
@@ -17,6 +18,7 @@ export interface ProjectListItem {
 export interface CreateProjectInput {
   name: string;
   description?: string | null;
+  type?: string;
   resource_type_id: number | string;
   is_active?: boolean;
   adminId?: number | null;
@@ -25,6 +27,7 @@ export interface CreateProjectInput {
 export interface UpdateProjectInput {
   name?: string;
   description?: string | null;
+  type?: string;
   resource_type_id?: number | string;
   is_active?: boolean;
   adminId?: number | null;
@@ -33,6 +36,7 @@ export interface UpdateProjectInput {
 export interface ListProjectsFilter {
   is_active?: boolean;
   name?: string;
+  type?: string;
   resource_type_id?: number;
   resource_type_code?: string;
 }
@@ -47,10 +51,14 @@ export class ProjectError extends Error {
   }
 }
 
+const PROJECT_TYPES = ["project", "service"] as const;
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+
 const PROJECT_SELECT = `
   p.id,
   p.name,
   p.description,
+  p.type,
   p.resource_type_id,
   rt.code AS resource_type_code,
   rt.name AS resource_type_name,
@@ -58,6 +66,16 @@ const PROJECT_SELECT = `
   p.created_at,
   p.updated_at
 `;
+
+function parseProjectType(value: unknown, field = "type"): ProjectType {
+  const type = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!PROJECT_TYPES.includes(type as ProjectType)) {
+    throw new ProjectError(400, `${field} must be one of: project, service`);
+  }
+  return type as ProjectType;
+}
 
 function parseOptionalBoolean(
   value: unknown,
@@ -166,6 +184,12 @@ export async function getActiveProjects(
     conditions.push(`p.is_active = $${params.length}`);
   }
 
+  if (filter.type !== undefined && String(filter.type).trim() !== "") {
+    const type = parseProjectType(filter.type);
+    params.push(type);
+    conditions.push(`p.type = $${params.length}`);
+  }
+
   const name = filter.name?.trim();
   if (name) {
     params.push(`%${name}%`);
@@ -215,6 +239,7 @@ export async function createProject(
     input.description === undefined || input.description === null
       ? null
       : String(input.description).trim() || null;
+  const type = parseProjectType(input.type ?? "project");
   const resourceTypeId = parsePositiveId(
     input.resource_type_id,
     "resource_type_id"
@@ -233,11 +258,11 @@ export async function createProject(
 
     const inserted = await client.query<{ id: number }>(
       `
-        INSERT INTO projects (name, description, resource_type_id, is_active)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO projects (name, description, type, resource_type_id, is_active)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
       `,
-      [name, description, resourceTypeId, isActive]
+      [name, description, type, resourceTypeId, isActive]
     );
     const projectId = Number(inserted.rows[0].id);
     const project = await getProjectRowById(client, projectId);
@@ -286,6 +311,8 @@ export async function updateProject(
         ? null
         : String(input.description).trim() || null
       : existing.description;
+  const nextType =
+    input.type !== undefined ? parseProjectType(input.type) : existing.type;
   const nextResourceTypeId =
     input.resource_type_id !== undefined
       ? parsePositiveId(input.resource_type_id, "resource_type_id")
@@ -315,13 +342,21 @@ export async function updateProject(
         UPDATE projects
         SET name = $1,
             description = $2,
-            resource_type_id = $3,
-            is_active = $4
-        WHERE id = $5
+            type = $3,
+            resource_type_id = $4,
+            is_active = $5
+        WHERE id = $6
           AND deleted_at IS NULL
         RETURNING id
       `,
-      [nextName, nextDescription, nextResourceTypeId, nextIsActive, id]
+      [
+        nextName,
+        nextDescription,
+        nextType,
+        nextResourceTypeId,
+        nextIsActive,
+        id,
+      ]
     );
 
     if (updated.rows.length === 0) {
