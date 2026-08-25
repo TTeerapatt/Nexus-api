@@ -172,7 +172,7 @@ SELECT seed.code, seed.name, TRUE, seed.sort_order
 FROM (
   VALUES
     ('dashboard', 'Dashboard', 1),
-    ('Infrastructure ', 'Infrastructure', 2),
+    ('infrastructure ', 'Infrastructure', 2),
     ('management', 'Management', 3),
     ('logs', 'Logs', 4)
 ) AS seed(code, name, sort_order)
