@@ -172,7 +172,7 @@ SELECT seed.code, seed.name, TRUE, seed.sort_order
 FROM (
   VALUES
     ('dashboard', 'Dashboard', 1),
-    ('infrastructure ', 'Infrastructure', 2),
+    ('infrastructure', 'Infrastructure', 2),
     ('management', 'Management', 3),
     ('logs', 'Logs', 4)
 ) AS seed(code, name, sort_order)
@@ -230,7 +230,7 @@ FROM (
     ('dashboard', 'overview', 'Overview', 1),
     ('dashboard', 'bi', 'BI', 2),
     ('infrastructure', 'vps', 'VPS', 1),
-    ('infrastructure', 'vps', 'CI-CD', 2),
+    ('infrastructure', 'ci-cd', 'CI-CD', 2),
     ('infrastructure', 'port', 'Port', 3),
     ('infrastructure', 'domain', 'Domain', 4),
     ('infrastructure', 'database', 'Database', 5),
@@ -345,12 +345,42 @@ FROM (
   VALUES
     ('overview', 'view'),
     ('bi', 'view'),
+    ('vps', 'view'),
+    ('vps', 'add'),
+    ('vps', 'edit'),
+    ('vps', 'delete'),
+    ('vps', 'export'),
+    ('ci-cd', 'view'),
+    ('ci-cd', 'add'),
+    ('ci-cd', 'edit'),
+    ('ci-cd', 'delete'),
+    ('ci-cd', 'export'),
+    ('port', 'view'),
+    ('port', 'add'),
+    ('port', 'edit'),
+    ('port', 'delete'),
+    ('port', 'export'),
+    ('domain', 'view'),
+    ('domain', 'add'),
+    ('domain', 'edit'),
+    ('domain', 'delete'),
+    ('domain', 'export'),
+    ('database', 'view'),
+    ('database', 'add'),
+    ('database', 'edit'),
+    ('database', 'delete'),
+    ('database', 'export'),
+    ('projects', 'view'),
+    ('projects', 'add'),
+    ('projects', 'edit'),
+    ('projects', 'delete'),
+    ('projects', 'export'),
     ('admins', 'view'),
     ('admins', 'add'),
     ('admins', 'edit'),
     ('admins', 'delete'),
     ('admins', 'export'),
-    ('admin_log', 'view')
+    ('logs', 'view')
 ) AS seed(tab_code, action_code)
 INNER JOIN admin_menu_tab mt
   ON mt.code = seed.tab_code
