@@ -12,13 +12,13 @@ const adminLogRouter = Router();
 adminLogRouter.get(
   "/",
   authMiddleware,
-  requirePermission("admin_log", "view"),
+  requirePermission("logs", "view"),
   getAdminLogsController
 );
 adminLogRouter.get(
   "/:id",
   authMiddleware,
-  requirePermission("admin_log", "view"),
+  requirePermission("logs", "view"),
   getAdminLogByIdController
 );
 

@@ -6,6 +6,7 @@ import authRouter from "./routes/auth.route";
 import adminsRouter from "./routes/admins.route";
 import adminLogRouter from "./routes/admin_log.route";
 import adminMenuRouter from "./routes/admin_menu.route";
+import portsRouter from "./routes/ports.route";
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/admins`, adminsRouter);
 app.use(`${API_PREFIX}/admin-log`, adminLogRouter);
 app.use(`${API_PREFIX}/admin-menu`, adminMenuRouter);
+app.use(`${API_PREFIX}/ports`, portsRouter);
 
 const PORT = Number(process.env.PORT) || 3001;
 
