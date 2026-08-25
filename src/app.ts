@@ -7,6 +7,8 @@ import adminsRouter from "./routes/admins.route";
 import adminLogRouter from "./routes/admin_log.route";
 import adminMenuRouter from "./routes/admin_menu.route";
 import portsRouter from "./routes/ports.route";
+import projectsRouter from "./routes/projects.route";
+import resourceTypesRouter from "./routes/resource_types.route";
 
 dotenv.config();
 
@@ -40,6 +42,8 @@ app.use(`${API_PREFIX}/admins`, adminsRouter);
 app.use(`${API_PREFIX}/admin-log`, adminLogRouter);
 app.use(`${API_PREFIX}/admin-menu`, adminMenuRouter);
 app.use(`${API_PREFIX}/ports`, portsRouter);
+app.use(`${API_PREFIX}/projects`, projectsRouter);
+app.use(`${API_PREFIX}/resource-types`, resourceTypesRouter);
 
 const PORT = Number(process.env.PORT) || 3001;
 

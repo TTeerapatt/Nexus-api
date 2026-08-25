@@ -1,14 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
 import {
-  PortError,
-  createPort,
-  getActivePortById,
-  getActivePorts,
-  hardDeletePort,
-  patchPortIsActive,
-  softDeletePort,
-  updatePort,
-} from "../services/ports.service";
+  ProjectError,
+  createProject,
+  getActiveProjectById,
+  getActiveProjects,
+  hardDeleteProject,
+  patchProjectIsActive,
+  softDeleteProject,
+  updateProject,
+} from "../services/projects.service";
 
 function routeParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
@@ -41,20 +41,7 @@ function parseOptionalBooleanQuery(
   const normalized = value.trim().toLowerCase();
   if (normalized === "true" || normalized === "1") return true;
   if (normalized === "false" || normalized === "0") return false;
-  throw new PortError(400, "is_active must be a boolean");
-}
-
-function parseOptionalPortNumberQuery(
-  value: string | undefined
-): number | undefined {
-  if (value === undefined || value.trim() === "") {
-    return undefined;
-  }
-  const port = Number(value);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new PortError(400, "port_number must be an integer between 1 and 65535");
-  }
-  return port;
+  throw new ProjectError(400, "is_active must be a boolean");
 }
 
 function parseOptionalPositiveIntQuery(
@@ -66,17 +53,17 @@ function parseOptionalPositiveIntQuery(
   }
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) {
-    throw new PortError(400, `${field} is invalid`);
+    throw new ProjectError(400, `${field} is invalid`);
   }
   return id;
 }
 
-function handlePortError(
+function handleProjectError(
   error: unknown,
   res: Response,
   next: NextFunction
 ): void {
-  if (error instanceof PortError) {
+  if (error instanceof ProjectError) {
     res.status(error.statusCode).json({
       success: false,
       message: error.message,
@@ -86,33 +73,31 @@ function handlePortError(
   next(error);
 }
 
-export async function getPortsController(
+export async function getProjectsController(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const ports = await getActivePorts({
+    const projects = await getActiveProjects({
       is_active: parseOptionalBooleanQuery(firstQueryValue(req.query.is_active)),
-      project_id: parseOptionalPositiveIntQuery(
-        firstQueryValue(req.query.project_id),
-        "project_id"
+      name: firstQueryValue(req.query.name),
+      resource_type_id: parseOptionalPositiveIntQuery(
+        firstQueryValue(req.query.resource_type_id),
+        "resource_type_id"
       ),
-      project_name: firstQueryValue(req.query.project_name),
-      port_number: parseOptionalPortNumberQuery(
-        firstQueryValue(req.query.port_number)
-      ),
+      resource_type_code: firstQueryValue(req.query.resource_type_code),
     });
     res.status(200).json({
       success: true,
-      data: ports,
+      data: projects,
     });
   } catch (error) {
-    handlePortError(error, res, next);
+    handleProjectError(error, res, next);
   }
 }
 
-export async function getPortByIdController(
+export async function getProjectByIdController(
   req: Request,
   res: Response,
   next: NextFunction
@@ -127,48 +112,48 @@ export async function getPortByIdController(
       return;
     }
 
-    const port = await getActivePortById(id);
-    if (!port) {
+    const project = await getActiveProjectById(id);
+    if (!project) {
       res.status(404).json({
         success: false,
-        message: "Port not found",
+        message: "Project not found",
       });
       return;
     }
 
     res.status(200).json({
       success: true,
-      data: port,
+      data: project,
     });
   } catch (error) {
     next(error);
   }
 }
 
-export async function createPortController(
+export async function createProjectController(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const port = await createPort({
-      port_number: req.body?.port_number,
-      project_id: req.body?.project_id,
+    const project = await createProject({
+      name: req.body?.name,
       description: req.body?.description,
+      resource_type_id: req.body?.resource_type_id,
       is_active: req.body?.is_active,
       adminId: req.admin?.adminId ?? null,
     });
 
     res.status(201).json({
       success: true,
-      data: port,
+      data: project,
     });
   } catch (error) {
-    handlePortError(error, res, next);
+    handleProjectError(error, res, next);
   }
 }
 
-export async function updatePortController(
+export async function updateProjectController(
   req: Request,
   res: Response,
   next: NextFunction
@@ -183,24 +168,24 @@ export async function updatePortController(
       return;
     }
 
-    const port = await updatePort(id, {
-      port_number: req.body?.port_number,
-      project_id: req.body?.project_id,
+    const project = await updateProject(id, {
+      name: req.body?.name,
       description: req.body?.description,
+      resource_type_id: req.body?.resource_type_id,
       is_active: req.body?.is_active,
       adminId: req.admin?.adminId ?? null,
     });
 
     res.status(200).json({
       success: true,
-      data: port,
+      data: project,
     });
   } catch (error) {
-    handlePortError(error, res, next);
+    handleProjectError(error, res, next);
   }
 }
 
-export async function patchPortIsActiveController(
+export async function patchProjectIsActiveController(
   req: Request,
   res: Response,
   next: NextFunction
@@ -215,7 +200,7 @@ export async function patchPortIsActiveController(
       return;
     }
 
-    const port = await patchPortIsActive(
+    const project = await patchProjectIsActive(
       id,
       req.body?.is_active,
       req.admin?.adminId ?? null
@@ -223,14 +208,14 @@ export async function patchPortIsActiveController(
 
     res.status(200).json({
       success: true,
-      data: port,
+      data: project,
     });
   } catch (error) {
-    handlePortError(error, res, next);
+    handleProjectError(error, res, next);
   }
 }
 
-export async function softDeletePortController(
+export async function softDeleteProjectController(
   req: Request,
   res: Response,
   next: NextFunction
@@ -245,18 +230,18 @@ export async function softDeletePortController(
       return;
     }
 
-    const port = await softDeletePort(id, req.admin?.adminId ?? null);
+    const project = await softDeleteProject(id, req.admin?.adminId ?? null);
     res.status(200).json({
       success: true,
-      message: "Port soft deleted",
-      data: port,
+      message: "Project soft deleted",
+      data: project,
     });
   } catch (error) {
-    handlePortError(error, res, next);
+    handleProjectError(error, res, next);
   }
 }
 
-export async function hardDeletePortController(
+export async function hardDeleteProjectController(
   req: Request,
   res: Response,
   next: NextFunction
@@ -271,13 +256,13 @@ export async function hardDeletePortController(
       return;
     }
 
-    const result = await hardDeletePort(id, req.admin?.adminId ?? null);
+    const result = await hardDeleteProject(id, req.admin?.adminId ?? null);
     res.status(200).json({
       success: true,
-      message: "Port hard deleted",
+      message: "Project hard deleted",
       data: result,
     });
   } catch (error) {
-    handlePortError(error, res, next);
+    handleProjectError(error, res, next);
   }
 }
