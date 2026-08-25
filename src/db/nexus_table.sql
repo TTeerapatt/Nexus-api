@@ -171,9 +171,10 @@ INSERT INTO admin_menu_label (code, name, is_active, sort_order)
 SELECT seed.code, seed.name, TRUE, seed.sort_order
 FROM (
   VALUES
-    ('dashboard', 'แดชบอร์ด', 1),
-    ('management', 'การจัดการ', 2),
-    ('activity-history', 'ประวัติการใช้งาน', 3)
+    ('dashboard', 'Dashboard', 1),
+    ('Infrastructure ', 'Infrastructure', 2),
+    ('management', 'Management', 3),
+    ('logs', 'Logs', 4)
 ) AS seed(code, name, sort_order)
 WHERE NOT EXISTS (
   SELECT 1
@@ -226,10 +227,16 @@ INSERT INTO admin_menu_tab (menu_label_id, code, name, is_active, sort_order)
 SELECT lbl.id, seed.code, seed.name, TRUE, seed.sort_order
 FROM (
   VALUES
-    ('dashboard', 'overview', 'ภาพรวม', 1),
-    ('dashboard', 'bi', 'วิเคราะห์ BI', 2),
-    ('management', 'admins', 'ผู้ดูแลระบบ', 1),
-    ('activity-history', 'admin_log', 'ประวัติแอดมิน', 1)
+    ('dashboard', 'overview', 'Overview', 1),
+    ('dashboard', 'bi', 'BI', 2),
+    ('infrastructure', 'vps', 'VPS', 1),
+    ('infrastructure', 'vps', 'CI-CD', 2),
+    ('infrastructure', 'port', 'Port', 3),
+    ('infrastructure', 'domain', 'Domain', 4),
+    ('infrastructure', 'database', 'Database', 5),
+    ('management', 'projects', 'Projects', 1),
+    ('management', 'admins', 'Admins', 2),
+    ('logs', 'logs', 'Logs', 1)
 ) AS seed(label_code, code, name, sort_order)
 INNER JOIN admin_menu_label lbl
   ON lbl.code = seed.label_code
