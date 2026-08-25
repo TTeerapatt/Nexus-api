@@ -1,0 +1,928 @@
+{
+  "info": {
+    "_postman_id": "0e6f6b70-2367-4b4d-a3c8-26a5e4dbb7ee",
+    "name": "Baan Laundry API",
+    "description": "Collection for Baan Laundry API endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3001/laundry/api" },
+    { "key": "token", "value": "" },
+    { "key": "user_id", "value": "1" },
+    { "key": "admin_id", "value": "1" },
+    { "key": "service_type_id", "value": "1" },
+    { "key": "list_type_id", "value": "1" },
+    { "key": "list_price_id", "value": "1" },
+    { "key": "order_id", "value": "1" },
+    { "key": "order_item_id", "value": "1" },
+    { "key": "order_log_id", "value": "1" },
+    { "key": "admin_log_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@baanlaundry.com\",\n  \"password\": \"123456\",\n  \"display_name\": \"Admin\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@baanlaundry.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "POST Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"0812345678\",\n  \"name\": \"Teerapat\",\n  \"note\": \"ลูกค้าทดลอง\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET User By Phone",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users?phone=0812345678",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "phone", "value": "0812345678" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Search Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users?q=0812",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "q", "value": "0812", "description": "ค้นทั้งเบอร์และชื่อ" },
+                { "key": "phone", "value": "0812", "disabled": true, "description": "ค้นเบอร์บางส่วน" },
+                { "key": "name", "value": "Tee", "disabled": true, "description": "ค้นชื่อแบบ contains" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET User By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"0812345678\",\n  \"name\": \"Teerapat Updated\",\n  \"note\": \"อัปเดตข้อมูล\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Soft Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Hard Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}/hard", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}", "hard"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admins",
+      "item": [
+        {
+          "name": "POST Create Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff1@baanlaundry.com\",\n  \"password\": \"123456\",\n  \"display_name\": \"Staff 1\",\n  \"role\": \"staff\",\n  \"permissions\": [\n    {\n      \"tab_code\": \"customers\",\n      \"action_codes\": [\"view\", \"edit\"]\n    },\n    {\n      \"tab_code\": \"list-prices\",\n      \"action_codes\": [\"view\"]\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/admins", "host": ["{{base_url}}"], "path": ["admins"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All Admins",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admins", "host": ["{{base_url}}"], "path": ["admins"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Admin By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admins/{{admin_id}}", "host": ["{{base_url}}"], "path": ["admins", "{{admin_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Admin Permissions By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admins/{{admin_id}}/permissions", "host": ["{{base_url}}"], "path": ["admins", "{{admin_id}}", "permissions"] }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update Admin",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@baanlaundry.com\",\n  \"display_name\": \"Admin Updated\",\n  \"role\": \"admin\",\n  \"password\": \"123456\",\n  \"permissions\": [\n    {\n      \"tab_code\": \"customers\",\n      \"action_codes\": [\"view\", \"add\", \"edit\", \"delete\"]\n    },\n    {\n      \"tab_code\": \"admins\",\n      \"action_codes\": [\"view\"]\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/admins/{{admin_id}}", "host": ["{{base_url}}"], "path": ["admins", "{{admin_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Soft Delete Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admins/{{admin_id}}", "host": ["{{base_url}}"], "path": ["admins", "{{admin_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Hard Delete Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admins/{{admin_id}}/hard", "host": ["{{base_url}}"], "path": ["admins", "{{admin_id}}", "hard"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Service Type",
+      "item": [
+        {
+          "name": "POST Create Service Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"fold\",\n  \"name\": \"พับ\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/service-type", "host": ["{{base_url}}"], "path": ["service-type"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All Service Type",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/service-type", "host": ["{{base_url}}"], "path": ["service-type"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Service Type By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/service-type/{{service_type_id}}", "host": ["{{base_url}}"], "path": ["service-type", "{{service_type_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update Service Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"fold\",\n  \"name\": \"พับเสื้อผ้า\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/service-type/{{service_type_id}}", "host": ["{{base_url}}"], "path": ["service-type", "{{service_type_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Soft Delete Service Type",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/service-type/{{service_type_id}}", "host": ["{{base_url}}"], "path": ["service-type", "{{service_type_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Hard Delete Service Type",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/service-type/{{service_type_id}}/hard", "host": ["{{base_url}}"], "path": ["service-type", "{{service_type_id}}", "hard"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "List Type",
+      "item": [
+        {
+          "name": "POST Create List Type",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"towel_normal\",\n  \"name\": \"ผ้าเช็ดตัว\",\n  \"size\": \"normal\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/list-type", "host": ["{{base_url}}"], "path": ["list-type"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All List Type",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-type", "host": ["{{base_url}}"], "path": ["list-type"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET List Type By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-type/{{list_type_id}}", "host": ["{{base_url}}"], "path": ["list-type", "{{list_type_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update List Type",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"towel_normal\",\n  \"name\": \"ผ้าเช็ดตัว\",\n  \"size\": \"normal\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/list-type/{{list_type_id}}", "host": ["{{base_url}}"], "path": ["list-type", "{{list_type_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Soft Delete List Type",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-type/{{list_type_id}}", "host": ["{{base_url}}"], "path": ["list-type", "{{list_type_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Hard Delete List Type",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-type/{{list_type_id}}/hard", "host": ["{{base_url}}"], "path": ["list-type", "{{list_type_id}}", "hard"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "List Price",
+      "item": [
+        {
+          "name": "POST Create List Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_type_id\": 1,\n  \"list_type_id\": 1,\n  \"unit_price\": 15\n}"
+            },
+            "url": { "raw": "{{base_url}}/list-price", "host": ["{{base_url}}"], "path": ["list-price"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All List Price",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-price", "host": ["{{base_url}}"], "path": ["list-price"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET List Price By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-price/{{list_price_id}}", "host": ["{{base_url}}"], "path": ["list-price", "{{list_price_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update List Price",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_type_id\": 1,\n  \"list_type_id\": 1,\n  \"unit_price\": 20\n}"
+            },
+            "url": { "raw": "{{base_url}}/list-price/{{list_price_id}}", "host": ["{{base_url}}"], "path": ["list-price", "{{list_price_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Soft Delete List Price",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-price/{{list_price_id}}", "host": ["{{base_url}}"], "path": ["list-price", "{{list_price_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Hard Delete List Price",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/list-price/{{list_price_id}}/hard", "host": ["{{base_url}}"], "path": ["list-price", "{{list_price_id}}", "hard"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "POST Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 1,\n  \"discount\": 0,\n  \"note\": \"รับผ้าวันนี้\",\n  \"items\": [\n    { \"list_price_id\": 1, \"qty\": 3, \"note\": \"เสื้อ\" }\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/orders", "host": ["{{base_url}}"], "path": ["orders"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/orders", "host": ["{{base_url}}"], "path": ["orders"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Search Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders?ticket_no=BL-&status=received&payment_status=unpaid&phone=0812345678&date_from=2026-08-01&date_to=2026-08-31",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "ticket_no", "value": "BL-" },
+                { "key": "status", "value": "received" },
+                { "key": "payment_status", "value": "unpaid" },
+                { "key": "phone", "value": "0812345678" },
+                { "key": "date_from", "value": "2026-08-01" },
+                { "key": "date_to", "value": "2026-08-31" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Order Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/logs",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "logs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"processing\",\n  \"payment_status\": \"unpaid\",\n  \"discount\": 0,\n  \"note\": \"กำลังซัก\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Update Order Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"processing\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH Update Payment Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_status\": \"paid\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/payment-status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "payment-status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Soft Delete Order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Hard Delete Order",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/orders/{{order_id}}/hard", "host": ["{{base_url}}"], "path": ["orders", "{{order_id}}", "hard"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Order Items",
+      "item": [
+        {
+          "name": "POST Create Order Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": 1,\n  \"list_price_id\": 1,\n  \"qty\": 2,\n  \"note\": \"เพิ่มรายการ\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/order-items", "host": ["{{base_url}}"], "path": ["order-items"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All Order Items",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/order-items", "host": ["{{base_url}}"], "path": ["order-items"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Order Item By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/order-items/{{order_item_id}}", "host": ["{{base_url}}"], "path": ["order-items", "{{order_item_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT Update Order Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qty\": 4,\n  \"note\": \"ปรับจำนวน\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/order-items/{{order_item_id}}", "host": ["{{base_url}}"], "path": ["order-items", "{{order_item_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Soft Delete Order Item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/order-items/{{order_item_id}}", "host": ["{{base_url}}"], "path": ["order-items", "{{order_item_id}}"] }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE Hard Delete Order Item",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/order-items/{{order_item_id}}/hard", "host": ["{{base_url}}"], "path": ["order-items", "{{order_item_id}}", "hard"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Order Log",
+      "item": [
+        {
+          "name": "POST Create Order Log",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"order_id\": 1,\n  \"action\": \"note\",\n  \"message\": \"ลูกค้าขอรีบ\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/order-log", "host": ["{{base_url}}"], "path": ["order-log"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET All Order Log",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/order-log", "host": ["{{base_url}}"], "path": ["order-log"] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Order Log By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/order-log/{{order_log_id}}", "host": ["{{base_url}}"], "path": ["order-log", "{{order_log_id}}"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Log",
+      "item": [
+        {
+          "name": "GET All Admin Log",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin-log",
+              "host": ["{{base_url}}"],
+              "path": ["admin-log"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Search Admin Log",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin-log?admin_id=1&action=login&entity_type=admin&date_from=2026-08-01&date_to=2026-08-31",
+              "host": ["{{base_url}}"],
+              "path": ["admin-log"],
+              "query": [
+                { "key": "admin_id", "value": "1" },
+                { "key": "action", "value": "login" },
+                { "key": "entity_type", "value": "admin" },
+                { "key": "entity_id", "value": "1", "disabled": true },
+                { "key": "date_from", "value": "2026-08-01" },
+                { "key": "date_to", "value": "2026-08-31" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Admin Log By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin-log/{{admin_log_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["admin-log", "{{admin_log_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Menu",
+      "item": [
+        {
+          "name": "GET Admin Menu All",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin-menu",
+              "host": ["{{base_url}}"],
+              "path": ["admin-menu"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Admin Menu Labels",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin-menu/labels",
+              "host": ["{{base_url}}"],
+              "path": ["admin-menu", "labels"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET Admin Menu Tabs",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin-menu/tabs",
+              "host": ["{{base_url}}"],
+              "path": ["admin-menu", "tabs"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
