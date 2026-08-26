@@ -3,6 +3,7 @@ import {
   CiCdError,
   getCiCdBuildStages,
   getCiCdJobDetail,
+  getCiCdStageLog,
   listCiCdJobs,
 } from "../services/ci_cd.service";
 
@@ -116,6 +117,50 @@ export async function getCiCdBuildStagesController(
     }
 
     const data = await getCiCdBuildStages(jobName, buildNumber);
+    res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    handleCiCdError(error, res, next);
+  }
+}
+
+export async function getCiCdStageLogController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const jobName = decodeURIComponent(routeParam(req.params.jobName)).trim();
+    const buildNumber = Number(routeParam(req.params.buildNumber));
+    const stageId = decodeURIComponent(routeParam(req.params.stageId)).trim();
+
+    if (!jobName) {
+      res.status(400).json({
+        success: false,
+        message: "jobName is required",
+      });
+      return;
+    }
+
+    if (!Number.isInteger(buildNumber) || buildNumber <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "buildNumber must be a positive integer",
+      });
+      return;
+    }
+
+    if (!stageId) {
+      res.status(400).json({
+        success: false,
+        message: "stageId is required",
+      });
+      return;
+    }
+
+    const data = await getCiCdStageLog(jobName, buildNumber, stageId);
     res.status(200).json({
       success: true,
       data,

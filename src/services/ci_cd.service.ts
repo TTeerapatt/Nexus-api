@@ -26,6 +26,7 @@ export type CiCdJobListItem = {
 };
 
 export type CiCdStageItem = {
+  id: string;
   name: string;
   status: string;
   durationMillis: number | null;
@@ -79,6 +80,7 @@ type JenkinsJobDetailResponse = {
 };
 
 type JenkinsWfapiStage = {
+  id?: string | number;
   name?: string;
   status?: string;
   durationMillis?: number;
@@ -86,6 +88,27 @@ type JenkinsWfapiStage = {
 
 type JenkinsWfapiDescribe = {
   stages?: JenkinsWfapiStage[];
+};
+
+type JenkinsWfapiLog = {
+  nodeId?: string;
+  nodeStatus?: string;
+  length?: number;
+  hasMore?: boolean;
+  text?: string;
+  consoleUrl?: string;
+};
+
+type JenkinsWfapiNodeDescribe = {
+  id?: string | number;
+  name?: string;
+  status?: string;
+  stageFlowNodes?: JenkinsWfapiNodeDescribe[];
+  stages?: JenkinsWfapiNodeDescribe[];
+  _links?: {
+    log?: { href?: string };
+    self?: { href?: string };
+  };
 };
 
 const MAX_BUILDS = 10;
@@ -107,6 +130,77 @@ function getJenkinsConfig() {
 
 function jenkinsAuthHeader(user: string, token: string): string {
   return `Basic ${Buffer.from(`${user}:${token}`).toString("base64")}`;
+}
+
+/** Jenkins wfapi logs often come as HTML (timestamps/links). Convert to plain text. */
+function htmlLogToPlainText(input: string): string {
+  if (!input) return "";
+
+  let text = String(input);
+  const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(text);
+  if (looksLikeHtml) {
+    text = text
+      .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/\s*p\s*>/gi, "\n")
+      .replace(/<\/\s*div\s*>/gi, "\n")
+      .replace(/<\/\s*tr\s*>/gi, "\n")
+      .replace(/<\s*li[^>]*>/gi, "- ")
+      .replace(/<\/\s*li\s*>/gi, "\n")
+      // Prefer visible timestamp text; drop hidden ISO timestamps.
+      .replace(
+        /<span[^>]*style\s*=\s*["'][^"']*display\s*:\s*none[^"']*["'][^>]*>[\s\S]*?<\/span>/gi,
+        ""
+      )
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&#(\d+);/g, (_, code: string) => {
+        const n = Number(code);
+        return Number.isFinite(n) ? String.fromCharCode(n) : "";
+      })
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => {
+        const n = Number.parseInt(hex, 16);
+        return Number.isFinite(n) ? String.fromCharCode(n) : "";
+      });
+  }
+
+  return formatLogLinesWithSeparator(
+    text
+      .replace(/\r\n/g, "\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
+}
+
+/** Format `03:37:12 message` -> `03:37:12 || message` */
+function formatLogLinesWithSeparator(input: string): string {
+  return input
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trimEnd();
+      if (!trimmed) return trimmed;
+
+      // Already formatted
+      if (/^\d{1,2}:\d{2}:\d{2}\s+\|\|/.test(trimmed)) {
+        return trimmed.replace(
+          /^(\d{1,2}:\d{2}:\d{2})\s+\|\|\s*/,
+          "$1     ||     "
+        );
+      }
+
+      const matched = trimmed.match(/^(\d{1,2}:\d{2}:\d{2})\s+(.*)$/);
+      if (!matched) return trimmed;
+
+      const [, time, message] = matched;
+      if (!message.trim()) return time;
+      return `${time}     ||     ${message.trim()}`;
+    })
+    .join("\n");
 }
 
 export function mapJenkinsColorToStatus(color: string | undefined): JenkinsJobStatus {
@@ -186,7 +280,8 @@ function mapStages(describe: JenkinsWfapiDescribe): CiCdStageItem[] {
   const rawStages = Array.isArray(describe.stages) ? describe.stages : [];
   return rawStages
     .filter((stage) => typeof stage?.name === "string" && stage.name.trim())
-    .map((stage) => ({
+    .map((stage, index) => ({
+      id: String(stage.id ?? index),
       name: String(stage.name).trim(),
       status: String(stage.status || "UNKNOWN").trim().toUpperCase(),
       durationMillis:
@@ -342,4 +437,148 @@ export async function getCiCdBuildStages(
     stages: loaded.stages,
     ...(loaded.stagesMessage ? { stagesMessage: loaded.stagesMessage } : {}),
   };
+}
+
+export async function getCiCdStageLog(
+  jobName: string,
+  buildNumber: number,
+  stageId: string
+): Promise<{
+  jobName: string;
+  buildNumber: number;
+  stageId: string;
+  text: string;
+  hasMore: boolean;
+  consoleUrl: string | null;
+}> {
+  if (!Number.isInteger(buildNumber) || buildNumber <= 0) {
+    throw new CiCdError(400, "buildNumber must be a positive integer");
+  }
+
+  const normalizedStageId = String(stageId || "").trim();
+  if (!normalizedStageId) {
+    throw new CiCdError(400, "stageId is required");
+  }
+
+  const encodedName = encodeURIComponent(jobName);
+  const nodeBase = `/job/${encodedName}/${buildNumber}/execution/node`;
+
+  async function fetchNodeLog(nodeId: string): Promise<{
+    text: string;
+    hasMore: boolean;
+    consoleUrl: string | null;
+  }> {
+    const encodedNodeId = encodeURIComponent(nodeId);
+    try {
+      const log = await jenkinsFetch<JenkinsWfapiLog>(
+        `${nodeBase}/${encodedNodeId}/wfapi/log`
+      );
+      return {
+        text: htmlLogToPlainText(typeof log.text === "string" ? log.text : ""),
+        hasMore: Boolean(log.hasMore),
+        consoleUrl:
+          typeof log.consoleUrl === "string" && log.consoleUrl.trim()
+            ? log.consoleUrl.trim()
+            : null,
+      };
+    } catch (error) {
+      if (error instanceof CiCdError && error.statusCode === 404) {
+        return { text: "", hasMore: false, consoleUrl: null };
+      }
+      throw error;
+    }
+  }
+
+  async function fetchNodeDescribe(
+    nodeId: string
+  ): Promise<JenkinsWfapiNodeDescribe | null> {
+    const encodedNodeId = encodeURIComponent(nodeId);
+    try {
+      return await jenkinsFetch<JenkinsWfapiNodeDescribe>(
+        `${nodeBase}/${encodedNodeId}/wfapi/describe`
+      );
+    } catch (error) {
+      if (error instanceof CiCdError && error.statusCode === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  function childNodes(node: JenkinsWfapiNodeDescribe): JenkinsWfapiNodeDescribe[] {
+    if (Array.isArray(node.stageFlowNodes) && node.stageFlowNodes.length > 0) {
+      return node.stageFlowNodes;
+    }
+    if (Array.isArray(node.stages) && node.stages.length > 0) {
+      return node.stages;
+    }
+    return [];
+  }
+
+  async function collectNodeLogs(
+    nodeId: string,
+    depth: number
+  ): Promise<{
+    chunks: string[];
+    hasMore: boolean;
+    consoleUrl: string | null;
+  }> {
+    if (depth > 4) {
+      return { chunks: [], hasMore: false, consoleUrl: null };
+    }
+
+    const own = await fetchNodeLog(nodeId);
+    const chunks: string[] = [];
+    if (own.text.trim()) {
+      chunks.push(own.text.trimEnd());
+    }
+
+    let hasMore = own.hasMore;
+    let consoleUrl = own.consoleUrl;
+
+    // Stage nodes often have empty logs; collect child step logs instead.
+    if (!own.text.trim()) {
+      const describe = await fetchNodeDescribe(nodeId);
+      const children = describe ? childNodes(describe) : [];
+
+      for (const child of children) {
+        const childId = String(child.id ?? "").trim();
+        if (!childId) continue;
+
+        const childName = String(child.name || "").trim();
+        const childResult = await collectNodeLogs(childId, depth + 1);
+        if (childResult.chunks.length > 0) {
+          if (childName) {
+            chunks.push(`--- ${childName} ---`);
+          }
+          chunks.push(...childResult.chunks);
+        }
+        hasMore = hasMore || childResult.hasMore;
+        if (!consoleUrl && childResult.consoleUrl) {
+          consoleUrl = childResult.consoleUrl;
+        }
+      }
+    }
+
+    return { chunks, hasMore, consoleUrl };
+  }
+
+  try {
+    const collected = await collectNodeLogs(normalizedStageId, 0);
+    const text = htmlLogToPlainText(collected.chunks.join("\n\n"));
+
+    return {
+      jobName,
+      buildNumber,
+      stageId: normalizedStageId,
+      text,
+      hasMore: collected.hasMore,
+      consoleUrl: collected.consoleUrl,
+    };
+  } catch (error) {
+    if (error instanceof CiCdError && error.statusCode === 404) {
+      throw new CiCdError(404, "Stage log is not available for this node");
+    }
+    throw error;
+  }
 }

@@ -3,6 +3,7 @@ import {
   getCiCdBuildStagesController,
   getCiCdJobByNameController,
   getCiCdJobsController,
+  getCiCdStageLogController,
 } from "../controllers/ci_cd.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/permission.middleware";
@@ -14,6 +15,13 @@ ciCdRouter.get(
   authMiddleware,
   requirePermission("ci-cd", "view"),
   getCiCdJobsController
+);
+
+ciCdRouter.get(
+  "/jobs/:jobName/builds/:buildNumber/stages/:stageId/log",
+  authMiddleware,
+  requirePermission("ci-cd", "view"),
+  getCiCdStageLogController
 );
 
 ciCdRouter.get(
