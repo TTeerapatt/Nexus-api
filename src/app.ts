@@ -9,6 +9,8 @@ import adminMenuRouter from "./routes/admin_menu.route";
 import portsRouter from "./routes/ports.route";
 import projectsRouter from "./routes/projects.route";
 import resourceTypesRouter from "./routes/resource_types.route";
+import allDatabaseRouter from "./routes/all_database.route";
+import databasesRouter from "./routes/databases.route";
 import ciCdRouter from "./routes/ci_cd.route";
 
 dotenv.config();
@@ -45,6 +47,8 @@ app.use(`${API_PREFIX}/admin-menu`, adminMenuRouter);
 app.use(`${API_PREFIX}/ports`, portsRouter);
 app.use(`${API_PREFIX}/projects`, projectsRouter);
 app.use(`${API_PREFIX}/resource-types`, resourceTypesRouter);
+app.use(`${API_PREFIX}/all-database`, allDatabaseRouter);
+app.use(`${API_PREFIX}/databases`, databasesRouter);
 app.use(`${API_PREFIX}/ci-cd`, ciCdRouter);
 
 const PORT = Number(process.env.PORT) || 3001;
