@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getCiCdBuildStagesController,
   getCiCdJobByNameController,
   getCiCdJobsController,
 } from "../controllers/ci_cd.controller";
@@ -13,6 +14,13 @@ ciCdRouter.get(
   authMiddleware,
   requirePermission("ci-cd", "view"),
   getCiCdJobsController
+);
+
+ciCdRouter.get(
+  "/jobs/:jobName/builds/:buildNumber",
+  authMiddleware,
+  requirePermission("ci-cd", "view"),
+  getCiCdBuildStagesController
 );
 
 ciCdRouter.get(

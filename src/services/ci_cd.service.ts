@@ -31,6 +31,14 @@ export type CiCdStageItem = {
   durationMillis: number | null;
 };
 
+export type CiCdBuildItem = {
+  number: number;
+  url: string;
+  result: string | null;
+  status: JenkinsJobStatus;
+  building: boolean;
+};
+
 export type CiCdJobDetail = {
   name: string;
   url: string;
@@ -38,6 +46,8 @@ export type CiCdJobDetail = {
   status: JenkinsJobStatus;
   healthScore: number | null;
   lastBuildNumber: number | null;
+  selectedBuildNumber: number | null;
+  builds: CiCdBuildItem[];
   stages: CiCdStageItem[];
   stagesMessage?: string;
 };
@@ -52,12 +62,20 @@ type JenkinsRootResponse = {
   jobs?: JenkinsJobSummary[];
 };
 
+type JenkinsBuildSummary = {
+  number?: number;
+  url?: string;
+  result?: string | null;
+  building?: boolean;
+};
+
 type JenkinsJobDetailResponse = {
   name?: string;
   url?: string;
   color?: string;
   healthReport?: Array<{ score?: number }>;
   lastBuild?: { number?: number; url?: string } | null;
+  builds?: JenkinsBuildSummary[];
 };
 
 type JenkinsWfapiStage = {
@@ -69,6 +87,8 @@ type JenkinsWfapiStage = {
 type JenkinsWfapiDescribe = {
   stages?: JenkinsWfapiStage[];
 };
+
+const MAX_BUILDS = 10;
 
 function getJenkinsConfig() {
   const baseUrl = (process.env.JENKINS_BASE_URL || "").trim().replace(/\/+$/, "");
@@ -105,6 +125,22 @@ export function mapJenkinsColorToStatus(color: string | undefined): JenkinsJobSt
   return "unknown";
 }
 
+export function mapJenkinsBuildResultToStatus(
+  result: string | null | undefined,
+  building?: boolean
+): JenkinsJobStatus {
+  if (building) return "running";
+  const value = String(result || "").trim().toUpperCase();
+  if (value === "SUCCESS") return "success";
+  if (value === "FAILURE" || value === "FAILED" || value === "ERROR") {
+    return "failed";
+  }
+  if (value === "UNSTABLE") return "unstable";
+  if (value === "ABORTED") return "aborted";
+  if (value === "NOT_BUILT") return "not_built";
+  return "unknown";
+}
+
 async function jenkinsFetch<T>(path: string): Promise<T> {
   const { baseUrl, user, token } = getJenkinsConfig();
   const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
@@ -129,7 +165,7 @@ async function jenkinsFetch<T>(path: string): Promise<T> {
   }
 
   if (response.status === 404) {
-    throw new CiCdError(404, "Jenkins job not found");
+    throw new CiCdError(404, "Jenkins resource not found");
   }
 
   if (!response.ok) {
@@ -143,6 +179,51 @@ async function jenkinsFetch<T>(path: string): Promise<T> {
     return (await response.json()) as T;
   } catch {
     throw new CiCdError(502, "Jenkins returned invalid JSON");
+  }
+}
+
+function mapStages(describe: JenkinsWfapiDescribe): CiCdStageItem[] {
+  const rawStages = Array.isArray(describe.stages) ? describe.stages : [];
+  return rawStages
+    .filter((stage) => typeof stage?.name === "string" && stage.name.trim())
+    .map((stage) => ({
+      name: String(stage.name).trim(),
+      status: String(stage.status || "UNKNOWN").trim().toUpperCase(),
+      durationMillis:
+        typeof stage.durationMillis === "number" ? stage.durationMillis : null,
+    }));
+}
+
+async function loadStagesForBuild(
+  encodedName: string,
+  buildNumber: number
+): Promise<{ stages: CiCdStageItem[]; stagesMessage?: string }> {
+  try {
+    const describe = await jenkinsFetch<JenkinsWfapiDescribe>(
+      `/job/${encodedName}/${buildNumber}/wfapi/describe`
+    );
+    const stages = mapStages(describe);
+    if (stages.length === 0) {
+      return {
+        stages: [],
+        stagesMessage: "No pipeline stages found for this build",
+      };
+    }
+    return { stages };
+  } catch (error) {
+    if (error instanceof CiCdError && error.statusCode === 404) {
+      return {
+        stages: [],
+        stagesMessage: "Pipeline stages API is not available for this build",
+      };
+    }
+    return {
+      stages: [],
+      stagesMessage:
+        error instanceof Error
+          ? error.message
+          : "Unable to load pipeline stages",
+    };
   }
 }
 
@@ -164,11 +245,16 @@ export async function listCiCdJobs(): Promise<CiCdJobListItem[]> {
     });
 }
 
-export async function getCiCdJobDetail(jobName: string): Promise<CiCdJobDetail> {
+export async function getCiCdJobDetail(
+  jobName: string,
+  buildNumber?: number
+): Promise<CiCdJobDetail> {
   const encodedName = encodeURIComponent(jobName);
+  const tree =
+    "name,url,color,healthReport[score],lastBuild[number],builds[number,url,result,building]";
 
   const job = await jenkinsFetch<JenkinsJobDetailResponse>(
-    `/job/${encodedName}/api/json`
+    `/job/${encodedName}/api/json?tree=${encodeURIComponent(tree)}`
   );
 
   const name = String(job.name || jobName).trim();
@@ -180,42 +266,39 @@ export async function getCiCdJobDetail(jobName: string): Promise<CiCdJobDetail> 
   const lastBuildNumber =
     job.lastBuild?.number != null ? Number(job.lastBuild.number) : null;
 
+  const builds: CiCdBuildItem[] = (Array.isArray(job.builds) ? job.builds : [])
+    .filter((build) => typeof build?.number === "number")
+    .slice(0, MAX_BUILDS)
+    .map((build) => {
+      const number = Number(build.number);
+      const building = Boolean(build.building);
+      const result =
+        build.result == null || build.result === ""
+          ? null
+          : String(build.result);
+      return {
+        number,
+        url: String(build.url || "").trim(),
+        result,
+        building,
+        status: mapJenkinsBuildResultToStatus(result, building),
+      };
+    });
+
+  const selectedBuildNumber =
+    buildNumber != null && Number.isInteger(buildNumber) && buildNumber > 0
+      ? buildNumber
+      : lastBuildNumber;
+
   let stages: CiCdStageItem[] = [];
   let stagesMessage: string | undefined;
 
-  if (lastBuildNumber == null) {
+  if (selectedBuildNumber == null) {
     stagesMessage = "No builds available for this job";
   } else {
-    try {
-      const describe = await jenkinsFetch<JenkinsWfapiDescribe>(
-        `/job/${encodedName}/${lastBuildNumber}/wfapi/describe`
-      );
-      const rawStages = Array.isArray(describe.stages) ? describe.stages : [];
-      stages = rawStages
-        .filter((stage) => typeof stage?.name === "string" && stage.name.trim())
-        .map((stage) => ({
-          name: String(stage.name).trim(),
-          status: String(stage.status || "UNKNOWN").trim().toUpperCase(),
-          durationMillis:
-            typeof stage.durationMillis === "number"
-              ? stage.durationMillis
-              : null,
-        }));
-
-      if (stages.length === 0) {
-        stagesMessage = "No pipeline stages found for the last build";
-      }
-    } catch (error) {
-      if (error instanceof CiCdError && error.statusCode === 404) {
-        stagesMessage = "Pipeline stages API is not available for this build";
-      } else {
-        stagesMessage =
-          error instanceof Error
-            ? error.message
-            : "Unable to load pipeline stages";
-      }
-      stages = [];
-    }
+    const loaded = await loadStagesForBuild(encodedName, selectedBuildNumber);
+    stages = loaded.stages;
+    stagesMessage = loaded.stagesMessage;
   }
 
   return {
@@ -227,7 +310,36 @@ export async function getCiCdJobDetail(jobName: string): Promise<CiCdJobDetail> 
     lastBuildNumber: Number.isFinite(lastBuildNumber as number)
       ? lastBuildNumber
       : null,
+    selectedBuildNumber:
+      selectedBuildNumber != null && Number.isFinite(selectedBuildNumber)
+        ? selectedBuildNumber
+        : null,
+    builds,
     stages,
     ...(stagesMessage ? { stagesMessage } : {}),
+  };
+}
+
+export async function getCiCdBuildStages(
+  jobName: string,
+  buildNumber: number
+): Promise<{
+  jobName: string;
+  buildNumber: number;
+  stages: CiCdStageItem[];
+  stagesMessage?: string;
+}> {
+  if (!Number.isInteger(buildNumber) || buildNumber <= 0) {
+    throw new CiCdError(400, "buildNumber must be a positive integer");
+  }
+
+  const encodedName = encodeURIComponent(jobName);
+  const loaded = await loadStagesForBuild(encodedName, buildNumber);
+
+  return {
+    jobName,
+    buildNumber,
+    stages: loaded.stages,
+    ...(loaded.stagesMessage ? { stagesMessage: loaded.stagesMessage } : {}),
   };
 }
