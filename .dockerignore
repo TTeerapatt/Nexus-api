@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.md
+AGENTS.md
+postman_collection.json
+npm-debug.log*
+.DS_Store
+*.tsbuildinfo
+upload
