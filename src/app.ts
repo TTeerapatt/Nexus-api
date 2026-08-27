@@ -13,6 +13,7 @@ import allDatabaseRouter from "./routes/all_database.route";
 import databasesRouter from "./routes/databases.route";
 import ciCdRouter from "./routes/ci_cd.route";
 import vpsRouter from "./routes/vps.route";
+import domainRouter from "./routes/domain.route";
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.use(`${API_PREFIX}/all-database`, allDatabaseRouter);
 app.use(`${API_PREFIX}/databases`, databasesRouter);
 app.use(`${API_PREFIX}/ci-cd`, ciCdRouter);
 app.use(`${API_PREFIX}/vps`, vpsRouter);
+app.use(`${API_PREFIX}/domains`, domainRouter);
 
 const PORT = Number(process.env.PORT) || 3001;
 
