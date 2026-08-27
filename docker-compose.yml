@@ -1,0 +1,44 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nexus-api:latest
+    container_name: nexus-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3003}:3003"
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3003}
+      # ถ้ามี DATABASE_URL จะถูกใช้ก่อน (password ที่มี # ต้อง encode เป็น %23)
+      DATABASE_URL: ${DATABASE_URL:-}
+      DB_HOST: ${DB_HOST:-187.52.125.210}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-}
+      DB_NAME: ${DB_NAME:-nexus}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      JENKINS_BASE_URL: ${JENKINS_BASE_URL:-http://187.52.125.210:8080}
+      JENKINS_USER: ${JENKINS_USER:-}
+      JENKINS_API_TOKEN: ${JENKINS_API_TOKEN:-}
+    volumes:
+      - api_upload:/app/upload
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:'+(process.env.PORT||3003)+'/nexus/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  api_upload:
