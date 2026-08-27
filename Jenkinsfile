@@ -73,6 +73,11 @@ pipeline {
       defaultValue: '11575f6e0b5e1984ca20bd62f14f2a148c',
       description: 'Jenkins API token'
     )
+    password(
+      name: 'HOSTINGER_API_TOKEN',
+      defaultValue: '',
+      description: 'Hostinger API token สำหรับหน้า VPS (จาก hPanel → API)'
+    )
   }
 
   environment {
@@ -91,6 +96,7 @@ pipeline {
     JENKINS_BASE_URL = "${params.JENKINS_BASE_URL}"
     JENKINS_USER = "${params.JENKINS_USER}"
     JENKINS_API_TOKEN = "${params.JENKINS_API_TOKEN}"
+    HOSTINGER_API_TOKEN = "${params.HOSTINGER_API_TOKEN}"
   }
 
   stages {
@@ -140,6 +146,7 @@ pipeline {
           export JENKINS_BASE_URL="${JENKINS_BASE_URL}"
           export JENKINS_USER="${JENKINS_USER}"
           export JENKINS_API_TOKEN="${JENKINS_API_TOKEN}"
+          export HOSTINGER_API_TOKEN="${HOSTINGER_API_TOKEN}"
           docker compose build api
         '''
       }
@@ -165,6 +172,7 @@ pipeline {
           export JENKINS_BASE_URL="${JENKINS_BASE_URL}"
           export JENKINS_USER="${JENKINS_USER}"
           export JENKINS_API_TOKEN="${JENKINS_API_TOKEN}"
+          export HOSTINGER_API_TOKEN="${HOSTINGER_API_TOKEN}"
           docker compose up -d --remove-orphans api
         '''
       }
