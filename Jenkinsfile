@@ -75,7 +75,7 @@ pipeline {
     )
     password(
       name: 'HOSTINGER_API_TOKEN',
-      defaultValue: '',
+      defaultValue: 'TC2kJIkXqMFpmNPcIQVCmS2iKRtScXP7ArP5GNIT58f1a721',
       description: 'Hostinger API token สำหรับหน้า VPS (จาก hPanel → API)'
     )
   }
