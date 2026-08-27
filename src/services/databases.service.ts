@@ -5,6 +5,9 @@ import { insertAdminLog } from "./admin_log.service";
 export interface DatabaseListItem {
   id: number;
   name: string;
+  project_id: number;
+  project_name: string;
+  project_type: "project" | "service";
   all_database_id: number;
   all_database_code: string;
   all_database_name: string;
@@ -16,6 +19,7 @@ export interface DatabaseListItem {
 
 export interface CreateDatabaseInput {
   name: string;
+  project_id: number | string;
   all_database_id: number | string;
   description?: string | null;
   is_active?: boolean;
@@ -24,6 +28,7 @@ export interface CreateDatabaseInput {
 
 export interface UpdateDatabaseInput {
   name?: string;
+  project_id?: number | string;
   all_database_id?: number | string;
   description?: string | null;
   is_active?: boolean;
@@ -33,6 +38,8 @@ export interface UpdateDatabaseInput {
 export interface ListDatabasesFilter {
   is_active?: boolean;
   name?: string;
+  project_id?: number;
+  project_name?: string;
   all_database_id?: number;
   all_database_code?: string;
 }
@@ -50,6 +57,9 @@ export class DatabaseError extends Error {
 const DATABASE_SELECT = `
   d.id,
   d.name,
+  d.project_id,
+  pr.name AS project_name,
+  pr.type AS project_type,
   d.all_database_id,
   ad.code AS all_database_code,
   ad.name AS all_database_name,
@@ -125,10 +135,32 @@ async function assertAllDatabaseExists(
   }
 }
 
-async function assertNameTypeAvailable(
+async function assertProjectActive(
+  client: PoolClient,
+  projectId: number
+): Promise<void> {
+  const result = await client.query<{ id: number }>(
+    `
+      SELECT id
+      FROM projects
+      WHERE id = $1
+        AND deleted_at IS NULL
+        AND is_active = TRUE
+      LIMIT 1
+    `,
+    [projectId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new DatabaseError(400, "project_id is invalid or inactive");
+  }
+}
+
+async function assertNameTypeProjectAvailable(
   client: PoolClient,
   name: string,
   allDatabaseId: number,
+  projectId: number,
   excludeId?: number
 ): Promise<void> {
   const result = await client.query<{ id: number }>(
@@ -137,17 +169,18 @@ async function assertNameTypeAvailable(
       FROM databases
       WHERE name = $1
         AND all_database_id = $2
+        AND project_id = $3
         AND deleted_at IS NULL
-        AND ($3::bigint IS NULL OR id <> $3)
+        AND ($4::bigint IS NULL OR id <> $4)
       LIMIT 1
     `,
-    [name, allDatabaseId, excludeId ?? null]
+    [name, allDatabaseId, projectId, excludeId ?? null]
   );
 
   if (result.rows.length > 0) {
     throw new DatabaseError(
       409,
-      `Database '${name}' already exists for this type`
+      `Database '${name}' already exists for this project and type`
     );
   }
 }
@@ -160,6 +193,8 @@ async function getDatabaseRowById(
     `
       SELECT ${DATABASE_SELECT}
       FROM databases d
+      INNER JOIN projects pr
+        ON pr.id = d.project_id
       INNER JOIN all_database ad
         ON ad.id = d.all_database_id
       WHERE d.id = $1
@@ -187,6 +222,18 @@ export async function getActiveDatabases(
     conditions.push(`d.name ILIKE $${params.length}`);
   }
 
+  if (filter.project_id !== undefined) {
+    const projectId = parsePositiveId(filter.project_id, "project_id");
+    params.push(projectId);
+    conditions.push(`d.project_id = $${params.length}`);
+  }
+
+  const projectName = filter.project_name?.trim();
+  if (projectName) {
+    params.push(`%${projectName}%`);
+    conditions.push(`pr.name ILIKE $${params.length}`);
+  }
+
   if (filter.all_database_id !== undefined) {
     const allDatabaseId = parsePositiveId(
       filter.all_database_id,
@@ -206,6 +253,8 @@ export async function getActiveDatabases(
     `
       SELECT ${DATABASE_SELECT}
       FROM databases d
+      INNER JOIN projects pr
+        ON pr.id = d.project_id
       INNER JOIN all_database ad
         ON ad.id = d.all_database_id
       WHERE ${conditions.join(" AND ")}
@@ -226,6 +275,7 @@ export async function createDatabase(
   input: CreateDatabaseInput
 ): Promise<DatabaseListItem> {
   const name = parseRequiredName(input.name);
+  const projectId = parsePositiveId(input.project_id, "project_id");
   const allDatabaseId = parsePositiveId(
     input.all_database_id,
     "all_database_id"
@@ -239,18 +289,24 @@ export async function createDatabase(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await assertProjectActive(client, projectId);
     await assertAllDatabaseExists(client, allDatabaseId);
-    await assertNameTypeAvailable(client, name, allDatabaseId);
+    await assertNameTypeProjectAvailable(
+      client,
+      name,
+      allDatabaseId,
+      projectId
+    );
 
     const inserted = await client.query<{ id: number }>(
       `
         INSERT INTO databases (
-          name, all_database_id, description, is_active
+          name, project_id, all_database_id, description, is_active
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
       `,
-      [name, allDatabaseId, description, isActive]
+      [name, projectId, allDatabaseId, description, isActive]
     );
 
     const row = await getDatabaseRowById(client, Number(inserted.rows[0].id));
@@ -276,7 +332,7 @@ export async function createDatabase(
     if (isUniqueViolation(error)) {
       throw new DatabaseError(
         409,
-        "Database name + type already exists"
+        "Database name + type + project already exists"
       );
     }
     throw error;
@@ -296,6 +352,10 @@ export async function updateDatabase(
 
   const nextName =
     input.name !== undefined ? parseRequiredName(input.name) : existing.name;
+  const nextProjectId =
+    input.project_id !== undefined
+      ? parsePositiveId(input.project_id, "project_id")
+      : existing.project_id;
   const nextAllDatabaseId =
     input.all_database_id !== undefined
       ? parsePositiveId(input.all_database_id, "all_database_id")
@@ -315,17 +375,22 @@ export async function updateDatabase(
   try {
     await client.query("BEGIN");
 
+    if (nextProjectId !== existing.project_id) {
+      await assertProjectActive(client, nextProjectId);
+    }
     if (nextAllDatabaseId !== existing.all_database_id) {
       await assertAllDatabaseExists(client, nextAllDatabaseId);
     }
     if (
       nextName !== existing.name ||
-      nextAllDatabaseId !== existing.all_database_id
+      nextAllDatabaseId !== existing.all_database_id ||
+      nextProjectId !== existing.project_id
     ) {
-      await assertNameTypeAvailable(
+      await assertNameTypeProjectAvailable(
         client,
         nextName,
         nextAllDatabaseId,
+        nextProjectId,
         id
       );
     }
@@ -334,14 +399,22 @@ export async function updateDatabase(
       `
         UPDATE databases
         SET name = $1,
-            all_database_id = $2,
-            description = $3,
-            is_active = $4
-        WHERE id = $5
+            project_id = $2,
+            all_database_id = $3,
+            description = $4,
+            is_active = $5
+        WHERE id = $6
           AND deleted_at IS NULL
         RETURNING id
       `,
-      [nextName, nextAllDatabaseId, nextDescription, nextIsActive, id]
+      [
+        nextName,
+        nextProjectId,
+        nextAllDatabaseId,
+        nextDescription,
+        nextIsActive,
+        id,
+      ]
     );
 
     if (updated.rows.length === 0) {
@@ -375,7 +448,7 @@ export async function updateDatabase(
     if (isUniqueViolation(error)) {
       throw new DatabaseError(
         409,
-        "Database name + type already exists"
+        "Database name + type + project already exists"
       );
     }
     throw error;

@@ -82,6 +82,11 @@ export async function getDatabasesController(
     const databases = await getActiveDatabases({
       is_active: parseOptionalBooleanQuery(firstQueryValue(req.query.is_active)),
       name: firstQueryValue(req.query.name),
+      project_id: parseOptionalPositiveIntQuery(
+        firstQueryValue(req.query.project_id),
+        "project_id"
+      ),
+      project_name: firstQueryValue(req.query.project_name),
       all_database_id: parseOptionalPositiveIntQuery(
         firstQueryValue(req.query.all_database_id),
         "all_database_id"
@@ -138,6 +143,7 @@ export async function createDatabaseController(
   try {
     const database = await createDatabase({
       name: req.body?.name,
+      project_id: req.body?.project_id,
       all_database_id: req.body?.all_database_id,
       description: req.body?.description,
       is_active: req.body?.is_active,
@@ -170,6 +176,7 @@ export async function updateDatabaseController(
 
     const database = await updateDatabase(id, {
       name: req.body?.name,
+      project_id: req.body?.project_id,
       all_database_id: req.body?.all_database_id,
       description: req.body?.description,
       is_active: req.body?.is_active,

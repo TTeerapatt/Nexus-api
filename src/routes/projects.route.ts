@@ -24,6 +24,9 @@ projectsRouter.get(
     { tabCode: "port", actionCode: "view" },
     { tabCode: "port", actionCode: "add" },
     { tabCode: "port", actionCode: "edit" },
+    { tabCode: "database", actionCode: "view" },
+    { tabCode: "database", actionCode: "add" },
+    { tabCode: "database", actionCode: "edit" },
   ]),
   getProjectsController
 );
