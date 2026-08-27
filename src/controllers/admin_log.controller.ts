@@ -64,6 +64,7 @@ export async function getAdminLogsController(
       entity_id: parseOptionalPositiveInt(firstQueryValue(req.query.entity_id)),
       date_from: firstQueryValue(req.query.date_from),
       date_to: firstQueryValue(req.query.date_to),
+      q: firstQueryValue(req.query.q),
     });
     res.status(200).json({
       success: true,

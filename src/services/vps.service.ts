@@ -1,3 +1,5 @@
+import { insertAdminLog } from "./admin_log.service";
+
 export class VpsError extends Error {
   statusCode: number;
 
@@ -309,17 +311,44 @@ export async function getVirtualMachineMetrics(
 
 export async function runVirtualMachinePowerAction(
   idRaw: string | number,
-  action: VpsPowerAction
+  action: VpsPowerAction,
+  adminId?: number | null
 ): Promise<{ id: number; action: VpsPowerAction; result: unknown }> {
   const id = parseVmId(idRaw);
   if (action !== "start" && action !== "stop" && action !== "restart") {
     throw new VpsError(400, "action must be one of: start, stop, restart");
   }
 
+  let hostname: string | null = null;
+  try {
+    const vm = await getVirtualMachineById(id);
+    hostname = vm.hostname;
+  } catch {
+    // keep logging even if detail lookup fails
+  }
+
   const result = await hostingerFetch<unknown>(
     `/api/vps/v1/virtual-machines/${id}/${action}`,
     { method: "POST" }
   );
+
+  try {
+    await insertAdminLog({
+      adminId,
+      action,
+      entityType: "vps",
+      entityId: id,
+      message: hostname
+        ? `Requested VPS ${action} for ${hostname}`
+        : `Requested VPS ${action} #${id}`,
+      meta: {
+        hostname,
+        hostinger_result: result,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to write VPS admin log:", error);
+  }
 
   return { id, action, result };
 }

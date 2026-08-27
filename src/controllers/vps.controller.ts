@@ -106,7 +106,8 @@ export async function postVpsPowerActionController(
 
     const data = await runVirtualMachinePowerAction(
       routeParam(req.params.id),
-      action
+      action,
+      req.admin?.adminId ?? null
     );
     res.status(200).json({
       success: true,
