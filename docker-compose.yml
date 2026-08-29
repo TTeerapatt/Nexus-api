@@ -11,15 +11,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: ${PORT:-3003}
-      # ถ้ามี DATABASE_URL จะถูกใช้ก่อน (password ที่มี # ต้อง encode เป็น %23)
+      # DATABASE_URL takes precedence when set. Encode # in a password as %23.
       DATABASE_URL: ${DATABASE_URL:-}
       DB_HOST: ${DB_HOST:-187.52.125.210}
       DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER:-postgres}
       DB_PASS: ${DB_PASS:-}
       DB_NAME: ${DB_NAME:-nexus}
-      JWT_SECRET: ${JWT_SECRET}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in the API .env file}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://trpgls.com,https://www.trpgls.com}
       JENKINS_BASE_URL: ${JENKINS_BASE_URL:-http://187.52.125.210:8080}
       JENKINS_USER: ${JENKINS_USER:-}
       JENKINS_API_TOKEN: ${JENKINS_API_TOKEN:-}
