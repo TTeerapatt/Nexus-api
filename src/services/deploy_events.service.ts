@@ -20,15 +20,27 @@ export type DeployEvent = {
 
 export type JenkinsWebhookPayload = {
   jobName?: unknown;
+  job_name?: unknown;
+  JOB_NAME?: unknown;
   name?: unknown;
   job?: unknown;
   buildNumber?: unknown;
+  build_number?: unknown;
+  BUILD_NUMBER?: unknown;
   number?: unknown;
   build?: unknown;
   phase?: unknown;
+  event?: unknown;
+  state?: unknown;
+  PHASE?: unknown;
   status?: unknown;
+  deployStatus?: unknown;
+  currentResult?: unknown;
   result?: unknown;
+  RESULT?: unknown;
   stage?: unknown;
+  stageName?: unknown;
+  STAGE_NAME?: unknown;
   message?: unknown;
 };
 
@@ -45,6 +57,12 @@ function parseBuildNumber(value: unknown): number | null {
   const parsed = Number(raw);
   if (!Number.isInteger(parsed) || parsed <= 0) return null;
   return parsed;
+}
+
+function parseBuildFromObject(value: unknown): number | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as { number?: unknown; id?: unknown };
+  return parseBuildNumber(candidate.number) ?? parseBuildNumber(candidate.id);
 }
 
 function normalizePhase(value: unknown): DeployPhase {
@@ -74,6 +92,12 @@ function normalizeWebhookStatus(
   }
   if (status === "success" || status === "successful" || status === "ok") {
     return "success";
+  }
+  if (status === "completed" || status === "complete" || status === "done") {
+    if (result === "SUCCESS") return "success";
+    if (result === "FAILURE" || result === "FAILED" || result === "ERROR") {
+      return "failed";
+    }
   }
   if (
     status === "failed" ||
@@ -112,6 +136,8 @@ export function parseJenkinsWebhookPayload(
 ): DeployEvent | { error: string } {
   const jobName =
     asTrimmedString(body.jobName) ||
+    asTrimmedString(body.job_name) ||
+    asTrimmedString(body.JOB_NAME) ||
     asTrimmedString(body.name) ||
     asTrimmedString(body.job);
 
@@ -121,22 +147,33 @@ export function parseJenkinsWebhookPayload(
 
   const buildNumber =
     parseBuildNumber(body.buildNumber) ??
+    parseBuildNumber(body.build_number) ??
+    parseBuildNumber(body.BUILD_NUMBER) ??
     parseBuildNumber(body.number) ??
-    parseBuildNumber(body.build);
+    parseBuildNumber(body.build) ??
+    parseBuildFromObject(body.build);
 
   if (buildNumber == null) {
     return { error: "buildNumber must be a positive integer" };
   }
 
-  const phase = normalizePhase(body.phase);
-  const status = normalizeWebhookStatus(body.status, body.result, phase);
+  const phase = normalizePhase(body.phase || body.event || body.state || body.PHASE);
+  const status = normalizeWebhookStatus(
+    body.status || body.deployStatus || body.currentResult,
+    body.result || body.RESULT,
+    phase
+  );
   if (!status) {
     return {
       error: "status must be one of: in_progress, success, failed",
     };
   }
 
-  const stage = asTrimmedString(body.stage) || undefined;
+  const stage =
+    asTrimmedString(body.stage) ||
+    asTrimmedString(body.stageName) ||
+    asTrimmedString(body.STAGE_NAME) ||
+    undefined;
   const message = asTrimmedString(body.message) || undefined;
 
   return {

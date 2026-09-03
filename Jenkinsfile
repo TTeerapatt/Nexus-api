@@ -23,6 +23,16 @@ pipeline {
       defaultValue: 'https://trpgls.com,https://www.trpgls.com',
       description: 'Allowed frontend origins, separated by commas'
     )
+    string(
+      name: 'WEBHOOK_URL',
+      defaultValue: 'https://trpgls.com/nexus/api/webhook/jenkins',
+      description: 'Nexus API webhook endpoint for live deploy status'
+    )
+    password(
+      name: 'WEBHOOK_SECRET',
+      defaultValue: '',
+      description: 'Shared secret for X-Jenkins-Secret header'
+    )
   }
 
   environment {
@@ -31,6 +41,8 @@ pipeline {
     API_PORT = "${params.API_PORT}"
     PORT = '3003'
     CORS_ORIGIN = "${params.CORS_ORIGIN}"
+    WEBHOOK_URL = "${params.WEBHOOK_URL}"
+    WEBHOOK_SECRET = "${params.WEBHOOK_SECRET}"
   }
 
   stages {
@@ -85,6 +97,14 @@ pipeline {
         expression { return params.DEPLOY == true }
       }
       steps {
+        script {
+          notifyDeployWebhook(
+            'started',
+            'in_progress',
+            'Deploy',
+            "Deploy started for ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+          )
+        }
         sh '''
           set -e
           export API_PORT="${API_PORT}"
@@ -125,10 +145,52 @@ pipeline {
   post {
     success {
       echo "nexus-api #${env.BUILD_NUMBER} succeeded → https://trpgls.com/nexus/api/health"
+      script {
+        notifyDeployWebhook(
+          'finished',
+          'success',
+          'Deploy',
+          "Deploy succeeded for ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        )
+      }
     }
     failure {
       echo "nexus-api #${env.BUILD_NUMBER} failed"
       sh 'docker compose ps || true'
+      script {
+        notifyDeployWebhook(
+          'finished',
+          'failed',
+          'Deploy',
+          "Deploy failed for ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        )
+      }
     }
   }
+}
+
+def notifyDeployWebhook(String phase, String status, String stageName, String message) {
+  if (!env.WEBHOOK_URL?.trim() || !env.WEBHOOK_SECRET?.trim()) {
+    echo 'Webhook skipped: WEBHOOK_URL or WEBHOOK_SECRET is empty'
+    return
+  }
+
+  def payload = groovy.json.JsonOutput.toJson([
+    jobName    : env.JOB_NAME,
+    buildNumber: env.BUILD_NUMBER?.toInteger(),
+    phase      : phase,
+    status     : status,
+    stage      : stageName,
+    message    : message
+  ])
+
+  sh """
+    set +e
+    curl -sS -X POST '${env.WEBHOOK_URL}' \\
+      -H 'Content-Type: application/json' \\
+      -H 'X-Jenkins-Secret: ${env.WEBHOOK_SECRET}' \\
+      --data '${payload}' \\
+      --max-time 10
+    exit 0
+  """
 }

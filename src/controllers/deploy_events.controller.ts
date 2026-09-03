@@ -49,9 +49,22 @@ export function jenkinsWebhookController(req: Request, res: Response): void {
     return;
   }
 
-  const parsed = parseJenkinsWebhookPayload(
-    (req.body || {}) as JenkinsWebhookPayload
-  );
+  let normalizedBody: JenkinsWebhookPayload;
+  try {
+    const rawBody = req.body;
+    normalizedBody =
+      typeof rawBody === "string"
+        ? (JSON.parse(rawBody || "{}") as JenkinsWebhookPayload)
+        : ((rawBody || {}) as JenkinsWebhookPayload);
+  } catch {
+    res.status(400).json({
+      success: false,
+      message: "Invalid JSON payload",
+    });
+    return;
+  }
+
+  const parsed = parseJenkinsWebhookPayload(normalizedBody);
 
   if ("error" in parsed) {
     res.status(400).json({
