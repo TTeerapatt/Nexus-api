@@ -94,7 +94,7 @@ export async function getAdminLogByIdController(
     if (!log) {
       res.status(404).json({
         success: false,
-        message: "Admin log not found",
+        message: "Admin log not found in database",
       });
       return;
     }
