@@ -23,22 +23,35 @@ function getJwtSecret(): string {
   return secret;
 }
 
-export function authMiddleware(
+function firstQueryValue(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    return value[0] !== undefined ? String(value[0]) : undefined;
+  }
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return String(value);
+}
+
+function extractBearerToken(req: Request): string {
+  const header = req.headers.authorization;
+  if (header && header.startsWith("Bearer ")) {
+    return header.slice("Bearer ".length).trim();
+  }
+  return "";
+}
+
+function extractQueryToken(req: Request): string {
+  return firstQueryValue(req.query.token)?.trim() || "";
+}
+
+function applyAuthToken(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
+  token: string
 ): void {
   try {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith("Bearer ")) {
-      res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-      return;
-    }
-
-    const token = header.slice("Bearer ".length).trim();
     if (!token) {
       res.status(401).json({
         success: false,
@@ -68,4 +81,29 @@ export function authMiddleware(
       message: "Invalid or expired token",
     });
   }
+}
+
+export function authMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  applyAuthToken(req, res, next, extractBearerToken(req));
+}
+
+/**
+ * EventSource cannot set Authorization headers.
+ * Accept Bearer header or `?token=` for SSE endpoints only.
+ */
+export function authMiddlewareAllowQueryToken(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  applyAuthToken(
+    req,
+    res,
+    next,
+    extractBearerToken(req) || extractQueryToken(req)
+  );
 }

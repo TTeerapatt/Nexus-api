@@ -5,10 +5,21 @@ import {
   getCiCdJobsController,
   getCiCdStageLogController,
 } from "../controllers/ci_cd.controller";
-import { authMiddleware } from "../middleware/auth.middleware";
+import { deployStreamController } from "../controllers/deploy_events.controller";
+import {
+  authMiddleware,
+  authMiddlewareAllowQueryToken,
+} from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/permission.middleware";
 
 const ciCdRouter = Router();
+
+ciCdRouter.get(
+  "/stream-status",
+  authMiddlewareAllowQueryToken,
+  requirePermission("ci-cd", "view"),
+  deployStreamController
+);
 
 ciCdRouter.get(
   "/jobs",

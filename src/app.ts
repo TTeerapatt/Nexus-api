@@ -2,6 +2,11 @@ import cors from "cors";
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
+import {
+  authMiddlewareAllowQueryToken,
+} from "./middleware/auth.middleware";
+import { requirePermission } from "./middleware/permission.middleware";
+import { deployStreamController } from "./controllers/deploy_events.controller";
 import authRouter from "./routes/auth.route";
 import adminsRouter from "./routes/admins.route";
 import adminLogRouter from "./routes/admin_log.route";
@@ -12,6 +17,7 @@ import resourceTypesRouter from "./routes/resource_types.route";
 import allDatabaseRouter from "./routes/all_database.route";
 import databasesRouter from "./routes/databases.route";
 import ciCdRouter from "./routes/ci_cd.route";
+import webhookRouter from "./routes/webhook.route";
 import vpsRouter from "./routes/vps.route";
 import domainRouter from "./routes/domain.route";
 
@@ -42,6 +48,13 @@ app.get(`${API_PREFIX}/health`, (_req, res) => {
   });
 });
 
+app.get(
+  `${API_PREFIX}/stream-status`,
+  authMiddlewareAllowQueryToken,
+  requirePermission("ci-cd", "view"),
+  deployStreamController
+);
+
 app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/admins`, adminsRouter);
 app.use(`${API_PREFIX}/admin-log`, adminLogRouter);
@@ -52,6 +65,7 @@ app.use(`${API_PREFIX}/resource-types`, resourceTypesRouter);
 app.use(`${API_PREFIX}/all-database`, allDatabaseRouter);
 app.use(`${API_PREFIX}/databases`, databasesRouter);
 app.use(`${API_PREFIX}/ci-cd`, ciCdRouter);
+app.use(`${API_PREFIX}/webhook`, webhookRouter);
 app.use(`${API_PREFIX}/vps`, vpsRouter);
 app.use(`${API_PREFIX}/domains`, domainRouter);
 
