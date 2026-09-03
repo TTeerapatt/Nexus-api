@@ -42,6 +42,7 @@ export function jenkinsWebhookController(req: Request, res: Response): void {
   ).trim();
 
   if (!providedSecret || providedSecret !== configuredSecret) {
+    console.warn("[jenkins-webhook] unauthorized request");
     res.status(401).json({
       success: false,
       message: "Unauthorized",
@@ -67,6 +68,7 @@ export function jenkinsWebhookController(req: Request, res: Response): void {
   const parsed = parseJenkinsWebhookPayload(normalizedBody);
 
   if ("error" in parsed) {
+    console.warn("[jenkins-webhook] invalid payload", parsed.error);
     res.status(400).json({
       success: false,
       message: parsed.error,
@@ -75,6 +77,9 @@ export function jenkinsWebhookController(req: Request, res: Response): void {
   }
 
   deployEventHub.publish(parsed);
+  console.log(
+    `[jenkins-webhook] ${parsed.jobName} #${parsed.buildNumber} ${parsed.phase} ${parsed.status}`
+  );
 
   res.status(200).json({
     success: true,
